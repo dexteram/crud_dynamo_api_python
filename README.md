@@ -7,6 +7,10 @@ previously you must have created the database, the security role, create the api
 
 this is the events for test in lambda function
 
+eventos para probar en la lambda serverless_api_function
+
+EVENT VALID
+
 {
   "HttpMethod": "DELETE",
   "id": "101"
@@ -21,6 +25,13 @@ this is the events for test in lambda function
   "editorial": ""
 }
 
+{
+  "HttpMethod": "GET_ALL",
+  "id": "",
+  "title": "",
+  "author": "",
+  "editorial": ""
+}
 
 {
   "HttpMethod": "POST",
@@ -37,4 +48,13 @@ this is the events for test in lambda function
   "title": "Viaje al centro de la tierra",
   "author": "Julio Verne",
   "editorial": "Basr-slow-PR"
+}
+
+EVENT INVALID
+
+{
+  "id": 1010,
+  "title": "La Voragine",
+  "author": "Jose Eustasio Rivera",
+  "editorial": "Biblioteca Nacional"
 }
