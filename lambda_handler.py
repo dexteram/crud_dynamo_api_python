@@ -1,153 +1,189 @@
-#import libraries
-import boto3
 import json
-from requests import request
-from custom_encoder import CustomEncoder
-import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+import  boto3
 
-#CONSTANTS1
-dynamodbTableName = 'BOOKS'
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(dynamodbTableName)
-
-#CONSTANTS2
-getMethod = 'GET'
-postMethod = 'POST'
-patchMethod = 'PATCH'
-deleteMethod = 'DELETE'
-healthPath = '/health'
-bookPath = '/book'
-bookPath = '/books/{id}'
-
-# Lambda handler main function
+#start the lambda function to query the request
 def lambda_handler(event, context):
-    logger.info(event)
-    
-    path = event['path']
-    httpMethod = event['httpMethod']
-    if httpMethod == getMethod and path == healthPath:
-        response = buildResponse(200)
-    elif httpMethod == getMethod and path == bookPath:
-        response = getBook(event['queryStringParameters']['id'])
-    elif httpMethod == getMethod and path == bookPath:
-        response = getBooks()
-    elif httpMethod == postMethod and path == bookPath:
-        response = postBook(json.loads(event['body']))
-    elif httpMethod == patchMethod and path == bookPath:
-        requestBody = json.loads(event['body'])
-        response = patchBook(requestBody['id'],requestBody['updateKey'] ,requestBody['updateValue'])
-    elif httpMethod == deleteMethod and path == bookPath:
-        requestBody = json.loads(event['body'])
-        response = deleteBook(requestBody['id'])
+    #validates the type of method that enters through the event
+    if ("POST" in event.values()):
+        #delete the word request so that the event can be used by the function
+        del event["HttpMethod"]
+        #call the function
+        create = create_book(event)
+        #return the book created
+        return create
+        
+        
+    #validates the type of method that enters through the event    
+    elif("GET" in event.values()):
+        #delete the word request so that the event can be used by the function
+        del event["HttpMethod"]
+        #call the funcion
+        get = get_book(event)
+        #returns the queried id
+        return get
+        
+    #validates the type of method that enters through the event   
+    elif("GET_ALL" in event.values()):
+        #delete the word request so that the event can be used by the function
+        del event["HttpMethod"]
+        #call the function
+        get_all_books = get_books(event)
+        #return all books are in table book in dynamodb
+        return get_all_books
+        
+    #validates the type of method that enters through the event     
+    elif("DELETE" in event.values()):
+        #delete the word request so that the event can be used by the function
+        del event["HttpMethod"]
+        delete = delete_book(event)
+        #return the book was deleted
+        return  delete
+        
+    #validates the type of method that enters through the event       
+    elif("PUT" in event.values()):
+        #delete the word request so that the event can be used by the function
+        del event["HttpMethod"]
+        #call the function
+        update = update_book(event)
+        # return the value updated
+        return update
     else:
-        response = buildResponse(404, 'Not Found')
-    return response
+        # return this message in case the json request is incorrect
+        return "invalid Request"
+    
 
-
-#GET ITEM
-def getBook(id):
+#FUNCTION CREATE_BOOK
+def create_book(event):
+    """
+    Create item from DynamoDB
+    """
     try:
+        #call the database
+        dynamodb = boto3.resource('dynamodb')
+        #calll the table created in dynamodb
+        table = dynamodb.Table('BOOKS')
+        #insert values in the table
+        table.put_item(Item=event)
+        #message when entering values in the table
+        return {
+            'statusCode': 200,
+            'body': json.dumps(event)
+        }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(e)
+        }
+        
+
+#GET_BOOK
+def get_book(event):
+    """
+    Get item from DynamoDB
+    """
+    try:
+        #call the database
+        dynamodb = boto3.resource('dynamodb')
+        #calll the table created in dynamodb
+        table = dynamodb.Table('BOOKS')
+        #value searched in the table
         response = table.get_item(
             Key={
-                'id': id
-            }
+                'id': event['id']
+                }
         )
-        if 'Item' in response:
-            return buildResponse(200, response['Item'])
-        else:
-            return buildResponse(404, {'message':'Id Not Found' % id})
-    except:
-        logger.exception('An error has occurred, the book you are entering could have been create¡¡¡')
-
-
-#GET ALL ITEMS
-def getBooks(id):
-    try:
-        response = table.scan()
-        result = response['Items']
-        while 'LastEvaluatedKey' in response:
-            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            result.extend(response['Items'])
-            body = {
-                'book': result
-            }
-            return buildResponse(200, body)
-    except:
-       logger.exception('an error has been presented, the book you are consulting was not found¡¡¡')
-
-
-#SAVE ITEM
-def postBook(requestBody):
-    try:
-        table.put_item(
-            Item=requestBody
-        )
-        body = {
-            'Operation': 'SAVE',
-            'Message': 'The book has been saved successfully',
-            'Item': requestBody
+        #return the value searched
+        return {
+            'statusCode': 200,
+            'body': json.dumps(response)
         }
-        return buildResponse(200, body)
-    except:
-        logger.exception('An error has occurred, an error has occurred, the book could not be saved¡¡¡')
-
-
-#UPDATE ITEM
-def patchBook(id, updateKey, updateValue):
+    except Exception as e:
+        #return error
+        return {
+            'statusCode': 500,
+            'body': json.dumps(e)
+        }
+        
+        
+# #GET_ALL BOOKS
+def get_books(event):
+    """
+    Get all item from DynamoDB
+    """
     try:
-        response = table.update_item(
+        #call the database
+        dynamodb = boto3.resource('dynamodb')
+        #calll the table created in dynamodb
+        table = dynamodb.Table('BOOKS')
+        #query in table
+        response = table.scan()
+        #return all the values in the table
+        return response
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(e)
+        }
+            
+
+#UPDATE_BOOK
+def update_book(event):
+    """
+    Update item from DynamoDB
+    """
+    try:
+        #call the database
+        dynamodb = boto3.resource('dynamodb')
+        #calll the table created in dynamodb
+        table = dynamodb.Table('BOOKS')
+        #values to update in the table
+        table.update_item(
             Key={
-                'id': id
+                'id': event['id']
             },
-            UpdateExpression="set %s = :value" % updateKey,
-            ExpressionAttributeNames={
-                ':value': updateKey
-            },
+            #values from the table books
+            UpdateExpression="set #title = :title, #author = :author, #editorial = :editorial",
             ExpressionAttributeValues={
-                ':val': updateValue
+                ':title': event['title'],
+                ':author': event['author'],
+                ':editorial': event['editorial']
+            },
+            ExpressionAttributeNames={
+                '#title': 'title',
+                '#author': 'author',
+                '#editorial': 'editorial'
             },
             ReturnValues="UPDATED_NEW"
         )
-        body = {
-            'Operation': 'UPDATE_NEW',
-            'Message': 'The book has been updated successfully',
-            'UpdatesAttrbutes': response
+        return event
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(e)
         }
-        return buildResponse(200, body)
-    except:
-        logger.exception('An error has occurred, the book you are updating could not be updated¡¡¡')
 
-
-#DELETE ITEM
-def deleteBook(id):
+#FUNCION DELETE BOOK
+def delete_book(event):
+    """
+    Delete item from DynamoDB
+    """
     try:
+        #call the database
+        dynamodb = boto3.resource('dynamodb')
+        #calll the table created in dynamodb
+        table = dynamodb.Table('BOOKS')
+        #values to delete in table
         response = table.delete_item(
             Key={
-                'id': id
-            },
-            ReturnValues="ALL_OLD"
+                'id': event['id']
+            }
         )
-        body = {
-            'Operation': 'DELETE',
-            'Message': 'The book has been deleted successfully',
-            'DeletedItem': response
+        return {
+            'statusCode': 200,
+            'body': json.dumps(response)
         }
-        return buildResponse(200, body)
-    except:
-        logger.exception('An error has occurred, the book you are deleting could not be deleted¡¡¡')
-
-
-#BUILD RESPONSE
-def buildResponse(statusCode, body=None):
-    responses = {
-        'statusCode': statusCode,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(e)
         }
-    }
-    if body is not None:
-        responses['body'] = json.dumps(body, cls=CustomEncoder)
-    return responses
